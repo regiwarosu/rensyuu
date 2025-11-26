@@ -1,0 +1,14 @@
+{
+  "name": "discord-oauth-worker",
+  "version": "1.0.0",
+  "description": "Discord OAuth2 Worker for Cloudflare Pages",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "build": "echo 'No build required'"
+  },
+  "dependencies": {
+    "node-fetch": "^3.0.0",
+    "url-search-params": "^3.0.0"
+  }
+}
