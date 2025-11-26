@@ -8,7 +8,6 @@
     "build": "echo 'No build required'"
   },
   "dependencies": {
-    "node-fetch": "^3.0.0",
-    "url-search-params": "^3.0.0"
+    "node-fetch": "^3.7.0"
   }
 }
