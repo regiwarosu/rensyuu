@@ -60,7 +60,11 @@ export default {
     
     // 6. それ以外のパス（ルートパスなど）へのアクセス処理
     // ここでユーザーを Discord 認証ページへリダイレクトさせます
-    const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=code&scope=identify%20guilds.join`; 
+    const discordAuthUrl =
+  `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}` +
+  `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
+  `&response_type=code&scope=identify%20guilds.join`;
+ 
     
     // 認証ページへのリダイレクト
     return Response.redirect(discordAuthUrl, 302);
