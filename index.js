@@ -1,4 +1,4 @@
-import fetch from 'node-fetch';
+
 
 // 環境変数から秘密の鍵を取得
 const CLIENT_ID = process.env.CLIENT_ID;
