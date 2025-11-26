@@ -8,6 +8,6 @@
     "build": "echo 'No build required'"
   },
   "dependencies": {
-    "node-fetch": "^3.7.0"
+    
   }
 }
