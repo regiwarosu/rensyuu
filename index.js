@@ -44,7 +44,7 @@ export default {
     // ユーザーを Discord 認証ページへリダイレクトさせる
     
     // REDIRECT_URI は encodeURIComponent でエンコードされています
-    const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=identify%20guilds.join`; 
+    const discordAuthUrl = "https://discord.com/api/oauth2/authorize?client_id=" + CLIENT_ID + "&redirect_uri=" + encodeURIComponent(REDIRECT_URI) + "&response_type=code&scope=identify%20guilds.join";
     
     // 認証ページへのリダイレクト
     return Response.redirect(discordAuthUrl, 302);
