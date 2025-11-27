@@ -21,8 +21,8 @@ export default {
           );
 
           if (tokenData && tokenData.access_token) {
-            // ★ 認証成功 → state のページに戻す
-            const redirectUrl = state || "/";
+            // ★ state が相対URLなら絶対URLに変換
+            const redirectUrl = normalizeRedirect(state || "/", request.url);
             return Response.redirect(redirectUrl, 302);
           }
         } catch (err) {
@@ -32,8 +32,7 @@ export default {
     }
 
     // ===== 認証開始 =====
-    // request.url の query に元ページ URL を入れてもいい
-    const originalPage = url.searchParams.get("from") || "/"; // ここで元ページを受け取る
+    const originalPage = url.searchParams.get("from") || "/";
     const discordAuthUrl =
       `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}` +
       `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
@@ -43,6 +42,16 @@ export default {
     return Response.redirect(discordAuthUrl, 302);
   }
 };
+
+// ===== state を絶対URLに変換 =====
+function normalizeRedirect(state, requestUrl) {
+  try {
+    return new URL(state).toString(); // 既に絶対URLならそのまま
+  } catch {
+    const base = new URL(requestUrl).origin;
+    return new URL(state, base).toString(); // 相対URLなら origin を基準に絶対URL化
+  }
+}
 
 // ===== 認可コード → トークン交換 =====
 async function exchangeCodeForToken(code, client_id, client_secret, redirect_uri) {
