@@ -1,9 +1,9 @@
-// Cloudflare Workers のメインハンドラをエクスポートする形式
+```javascript
+// Worker のメインハンドラをエクスポートする形式
 export default {
   // すべてのリクエストはこの fetch 関数で処理される
   async fetch(request, env, ctx) {
     // 1. 環境変数（シークレットキーなど）を env オブジェクトから取得する
-    // Pagesの設定画面でこれらの変数が設定されている必要があります。
     const CLIENT_ID = env.CLIENT_ID;
     const CLIENT_SECRET = env.CLIENT_SECRET;
     const REDIRECT_URI = env.REDIRECT_URI;
@@ -11,7 +11,7 @@ export default {
 
     const url = new URL(request.url);
 
-    // 2. /callback パスへのアクセスを処理する
+    // 2. /callback パスへのアクセスを処理する (Discordからの応答)
     if (url.pathname === '/callback') {
       const code = url.searchParams.get('code');
 
@@ -25,46 +25,26 @@ export default {
           if (tokenData && tokenData.access_token) {
             // 4. トークン取得成功！
             
-            // ユーザー情報を取得し、Bot連携を完了する処理をここに追加
-            // 例: await fetchUserData(tokenData.access_token, BOT_TOKEN);
-
-            // 5. 連携完了画面（index.htmlの内容）を返す
-            // ⚠️ 注意: 実際には index.html の内容を読み込んで返す必要がありますが、
-            //       ここではデプロイ成功のため、仮の成功メッセージを返します。
-            const successHtml = `
-              <!DOCTYPE html>
-              <html lang="ja">
-              <body>
-                  <h1>Discord 連携成功！🎉</h1>
-                  <p>Bot とのアカウント連携が正常に完了しました。</p>
-                  <p>これで Bot の全機能をご利用いただけます。</p>
-              </body>
-              </html>
-            `;
-
-            return new Response(successHtml, {
-              status: 200,
-              headers: { 'Content-Type': 'text/html; charset=utf-8' }
-            });
+            // 成功時: 成功画面の代わりに、ルートパスへリダイレクト (302)
+            return Response.redirect(url.origin, 302); 
 
           } else {
-            // トークン交換失敗
-            return new Response("連携失敗: トークン交換エラー", { status: 500 });
+            // トークン交換失敗（Discordがトークンを返さなかった）
+            // 🚨 修正: ルートパスへリダイレクト 🚨
+            return Response.redirect(url.origin, 302);
           }
         } catch (error) {
           console.error('OAuth Error:', error);
-          return new Response(`連携処理中にエラーが発生しました: ${error.message}`, { status: 500 });
+          // 🚨 修正: エラー発生時もルートパスへリダイレクト 🚨
+          return Response.redirect(url.origin, 302);
         }
       }
     }
     
-    // 6. それ以外のパス（ルートパスなど）へのアクセス処理
-    // ここでユーザーを Discord 認証ページへリダイレクトさせます
-    const discordAuthUrl =
-  `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}` +
-  `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
-  `&response_type=code&scope=identify%20guilds.join`;
- 
+    // 5. それ以外のパス（ルートパスなど）へのアクセス処理
+    // ユーザーを Discord 認証ページへリダイレクトさせる
+    
+    const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=identify%20guilds.join`; 
     
     // 認証ページへのリダイレクト
     return Response.redirect(discordAuthUrl, 302);
@@ -80,7 +60,7 @@ async function exchangeCodeForToken(code, client_id, client_secret, redirect_uri
   params.append('grant_type', 'authorization_code');
   params.append('code', code);
   params.append('redirect_uri', redirect_uri);
-  params.append('scope', 'identify guilds.join'); // 認証時に要求したスコープと合わせる
+  params.append('scope', 'identify guilds.join');
 
   const response = await fetch('https://discord.com/api/oauth2/token', {
     method: 'POST',
@@ -94,6 +74,7 @@ async function exchangeCodeForToken(code, client_id, client_secret, redirect_uri
     return response.json();
   } else {
     const errorText = await response.text();
+    // Discordからの詳細なエラーメッセージをスローする
     throw new Error(`Discord APIエラー: ${response.status} - ${errorText}`);
   }
 }
