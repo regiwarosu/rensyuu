@@ -1,8 +1,11 @@
+const CLIENT_ID_VALUE = "1426450020584132749";
+const REDIRECT_URI_VALUE = "https://3domenosyoujiki.hnks.workers.dev/callback";
+
 export default {
   async fetch(request, env) {
-    const CLIENT_ID = env.CLIENT_ID;
+    const CLIENT_ID = CLIENT_ID_VALUE;
     const CLIENT_SECRET = env.CLIENT_SECRET;
-    const REDIRECT_URI = env.REDIRECT_URI;
+    const REDIRECT_URI = REDIRECT_URI_VALUE;
 
     const url = new URL(request.url);
 
