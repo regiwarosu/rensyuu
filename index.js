@@ -1,4 +1,3 @@
-```javascript
 // Worker のメインハンドラをエクスポートする形式
 export default {
   // すべてのリクエストはこの fetch 関数で処理される
@@ -25,18 +24,18 @@ export default {
           if (tokenData && tokenData.access_token) {
             // 4. トークン取得成功！
             
-            // 成功時: 成功画面の代わりに、ルートパスへリダイレクト (302)
+            // 🚨 修正前: 成功画面の代わりに、ルートパスへリダイレクト (302) 🚨
+            // このコードは「連携成功！」のHTMLを返していた時の修正後の状態です。
             return Response.redirect(url.origin, 302); 
 
           } else {
             // トークン交換失敗（Discordがトークンを返さなかった）
-            // 🚨 修正: ルートパスへリダイレクト 🚨
-            return Response.redirect(url.origin, 302);
+            return new Response("連携失敗: トークン交換エラー", { status: 500 });
           }
         } catch (error) {
           console.error('OAuth Error:', error);
-          // 🚨 修正: エラー発生時もルートパスへリダイレクト 🚨
-          return Response.redirect(url.origin, 302);
+          // 🚨 修正前: エラーメッセージを表示する処理 🚨
+          return new Response(`連携処理中にエラーが発生しました: ${error.message}`, { status: 500 });
         }
       }
     }
@@ -44,6 +43,7 @@ export default {
     // 5. それ以外のパス（ルートパスなど）へのアクセス処理
     // ユーザーを Discord 認証ページへリダイレクトさせる
     
+    // REDIRECT_URI は encodeURIComponent でエンコードされています
     const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=identify%20guilds.join`; 
     
     // 認証ページへのリダイレクト
