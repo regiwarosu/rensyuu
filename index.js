@@ -6,10 +6,8 @@ export default {
 
     const url = new URL(request.url);
 
-    // ===== callback =====
     if (url.pathname === "/callback") {
       const code = url.searchParams.get("code");
-      const state = url.searchParams.get("state"); // 元ページURL
 
       if (code) {
         try {
@@ -21,9 +19,23 @@ export default {
           );
 
           if (tokenData && tokenData.access_token) {
-            // ★ state が相対URLなら絶対URLに変換
-            const redirectUrl = normalizeRedirect(state || "/", request.url);
-            return Response.redirect(redirectUrl, 302);
+            // 認証成功 → タブを閉じる HTML を返す
+            const html = `
+              <!DOCTYPE html>
+              <html lang="ja">
+              <body>
+                <script>
+                  window.close();
+                </script>
+              </body>
+              </html>
+            `;
+            return new Response(html, {
+              status: 200,
+              headers: { "Content-Type": "text/html; charset=utf-8" },
+            });
+          } else {
+            return new Response("連携失敗: トークン交換エラー", { status: 500 });
           }
         } catch (err) {
           return new Response(`OAuth エラー: ${err.message}`, { status: 500 });
@@ -31,29 +43,16 @@ export default {
       }
     }
 
-    // ===== 認証開始 =====
-    const originalPage = url.searchParams.get("from") || "/";
+    // 認証開始
     const discordAuthUrl =
       `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}` +
       `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
-      `&response_type=code&scope=identify%20guilds.join` +
-      `&state=${encodeURIComponent(originalPage)}`;
+      `&response_type=code&scope=identify%20guilds.join`;
 
     return Response.redirect(discordAuthUrl, 302);
-  }
+  },
 };
 
-// ===== state を絶対URLに変換 =====
-function normalizeRedirect(state, requestUrl) {
-  try {
-    return new URL(state).toString(); // 既に絶対URLならそのまま
-  } catch {
-    const base = new URL(requestUrl).origin;
-    return new URL(state, base).toString(); // 相対URLなら origin を基準に絶対URL化
-  }
-}
-
-// ===== 認可コード → トークン交換 =====
 async function exchangeCodeForToken(code, client_id, client_secret, redirect_uri) {
   const params = new URLSearchParams();
   params.append("client_id", client_id);
@@ -63,14 +62,14 @@ async function exchangeCodeForToken(code, client_id, client_secret, redirect_uri
   params.append("redirect_uri", redirect_uri);
   params.append("scope", "identify guilds.join");
 
-  const response = await fetch("https://discord.com/api/oauth2/token", {
+  const res = await fetch("https://discord.com/api/oauth2/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: params.toString(),
   });
 
-  if (response.ok) return response.json();
+  if (res.ok) return res.json();
 
-  const text = await response.text();
-  throw new Error(`Discord APIエラー: ${response.status} - ${text}`);
+  const text = await res.text();
+  throw new Error(`Discord APIエラー: ${res.status} - ${text}`);
 }
