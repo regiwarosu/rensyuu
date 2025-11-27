@@ -4,8 +4,6 @@ const CLIENT_ID = env.CLIENT_ID;
 const CLIENT_SECRET = env.CLIENT_SECRET;
 const REDIRECT_URI = env.REDIRECT_URI;
 const BOT_TOKEN = env.BOT_TOKEN;
-
-```
 const url = new URL(request.url);
 
 // ====== callback処理 ======
@@ -49,11 +47,8 @@ const discordAuthUrl =
   `&state=${encodeURIComponent(originalUrl)}`; // ★戻り先情報を付ける
 
 return Response.redirect(discordAuthUrl, 302);
-```
-
 },
 };
-
 // ====== 認可コード → アクセストークン変換 ======
 async function exchangeCodeForToken(code, client_id, client_secret, redirect_uri) {
 const params = new URLSearchParams();
@@ -63,17 +58,15 @@ params.append("grant_type", "authorization_code");
 params.append("code", code);
 params.append("redirect_uri", redirect_uri);
 params.append("scope", "identify guilds.join");
-
-const response = await fetch("[https://discord.com/api/oauth2/token](https://discord.com/api/oauth2/token)", {
+const response = await fetch("https://discord.com/api/oauth2/token", {
 method: "POST",
 headers: { "Content-Type": "application/x-www-form-urlencoded" },
 body: params.toString(),
 });
-
 if (response.ok) {
 return response.json();
 } else {
 const errorText = await response.text();
-throw new Error(`Discord APIエラー: ${response.status} - ${errorText}`);
+throw new Error(Discord APIエラー: ${response.status} - ${errorText});
 }
 }
