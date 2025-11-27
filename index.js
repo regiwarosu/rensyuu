@@ -1,4 +1,3 @@
-// Worker のメインハンドラをエクスポートする形式
 export default {
   // すべてのリクエストはこの fetch 関数で処理される
   async fetch(request, env, ctx) {
