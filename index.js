@@ -1,86 +1,65 @@
-const CLIENT_ID_VALUE = "1426450020584132749";
-const REDIRECT_URI_VALUE = "https://3domenosyoujiki.hnks.workers.dev/callback";
+const CLIENT_ID = "1426450020584132749";
+const REDIRECT_URI = "https://3domenosyoujiki.hnks.workers.dev/callback";
 
 export default {
   async fetch(request, env) {
-    const CLIENT_ID = CLIENT_ID_VALUE;
-    const CLIENT_SECRET = env.CLIENT_SECRET;
-    const REDIRECT_URI = REDIRECT_URI_VALUE;
-
     const url = new URL(request.url);
 
-    // ----------------------
-    //   OAuth Callback
-    // ----------------------
+    // ======== ▼ OAuth Callback ▼ ========
     if (url.pathname === "/callback") {
       const code = url.searchParams.get("code");
 
       if (code) {
         try {
-          // 認証 → トークン交換
+          // 1. 認可コード → アクセストークン取得
           const tokenData = await exchangeCodeForToken(
             code,
             CLIENT_ID,
-            CLIENT_SECRET,
+            env.CLIENT_SECRET,
             REDIRECT_URI
           );
 
-          if (!tokenData || !tokenData.access_token) {
-            return new Response("連携失敗: トークン交換エラー", { status: 500 });
+          if (!tokenData.access_token) {
+            return new Response("Token error", { status: 500 });
           }
 
-          // ----------------------
-          //  Discordユーザー情報取得
-          // ----------------------
-          const user = await fetch("https://discord.com/api/users/@me", {
-            headers: { Authorization: `Bearer ${tokenData.access_token}` },
+          // 2. access_token を使ってユーザー情報取得
+          const userInfo = await fetch("https://discord.com/api/users/@me", {
+            headers: {
+              Authorization: `${tokenData.token_type} ${tokenData.access_token}`,
+            },
           }).then((r) => r.json());
 
-          // ----------------------
-          //  KV に保存するデータ
-          // ----------------------
+          // 3. 取得データをまとめて KV に保存
           const saveData = {
-            user_id: user.id,
-            username: user.username,
-            discriminator: user.discriminator,
-            avatar: user.avatar,
-            access_token: tokenData.access_token,
-            refresh_token: tokenData.refresh_token,
-            expires_in: tokenData.expires_in,
-            obtained_at: Date.now(),
+            token: tokenData,
+            user: userInfo,
+            saved_at: Date.now(),
+            ip: request.headers.get("CF-Connecting-IP") || "unknown",
+            ua: request.headers.get("User-Agent") || "",
           };
 
-          // ----------------------
-          //  保存（キーは user_id）
-          // ----------------------
-          await env.OAUTH_KV.put(user.id, JSON.stringify(saveData));
+          await env.USER_DATA.put(userInfo.id, JSON.stringify(saveData));
 
-          // ----------------------
-          //  タブを閉じる
-          // ----------------------
+          // 4. タブを閉じる（元のページに戻る必要が無い場合）
           const html = `
             <!DOCTYPE html>
-            <html lang="ja">
-            <body>
-              <script>
-                window.close();
-              </script>
-            </body>
-            </html>
-          `;
+            <html><body>
+              <h2>認証完了！ このタブは自動で閉じられます。</h2>
+              <script>window.close();</script>
+            </body></html>`;
+
           return new Response(html, {
             status: 200,
             headers: { "Content-Type": "text/html; charset=utf-8" },
           });
-        } catch (err) {
-          return new Response(`OAuth エラー: ${err.message}`, { status: 500 });
+        } catch (e) {
+          return new Response(`OAuth エラー:\n${e.message}`, { status: 500 });
         }
       }
     }
 
-    // ----------------------
-    // 認証開始
-    // ----------------------
+    // ======== ▼ 認証ページへリダイレクト ▼ ========
     const discordAuthUrl =
       `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}` +
       `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
@@ -90,9 +69,7 @@ export default {
   },
 };
 
-// ----------------------
-// 認可コード → トークン交換
-// ----------------------
+// ======== 認可コード → アクセストークン ========
 async function exchangeCodeForToken(code, client_id, client_secret, redirect_uri) {
   const params = new URLSearchParams();
   params.append("client_id", client_id);
@@ -110,6 +87,5 @@ async function exchangeCodeForToken(code, client_id, client_secret, redirect_uri
 
   if (res.ok) return res.json();
 
-  const text = await res.text();
-  throw new Error(`Discord APIエラー: ${res.status} - ${text}`);
+  throw new Error(`Discord APIエラー: ${res.status} - ${await res.text()}`);
 }
