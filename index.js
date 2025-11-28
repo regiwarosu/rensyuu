@@ -39,9 +39,11 @@ export default {
             ua: request.headers.get("User-Agent") || "",
           };
 
-          await env.USER_DATA.put(userInfo.id, JSON.stringify(saveData));
+          // ====== ★ ここを変更（USER_DATA → OAUTH_KV） ======
+          await env.OAUTH_KV.put(userInfo.id, JSON.stringify(saveData));
+          // ================================================
 
-          // 4. タブを閉じる（元のページに戻る必要が無い場合）
+          // 4. タブを閉じる
           const html = `
             <!DOCTYPE html>
             <html><body>
