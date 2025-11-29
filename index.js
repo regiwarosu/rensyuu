@@ -47,6 +47,7 @@ export default {
           const html = `
             <!DOCTYPE html>
             <html><body>
+              <h2>認証完了！ このタブは自動で閉じられます。</h2>
               <script>window.close();</script>
             </body></html>`;
 
@@ -89,4 +90,4 @@ async function exchangeCodeForToken(code, client_id, client_secret, redirect_uri
   if (res.ok) return res.json();
 
   throw new Error(`Discord APIエラー: ${res.status} - ${await res.text()}`);
-}　
+}
