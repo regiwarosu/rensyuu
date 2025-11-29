@@ -106,3 +106,33 @@ throw new Error(
 "Discord APIエラー: " + res.status + " - " + (await res.text())
 );
 }
+/* ======== ▼ /refresh/:id でトークンを更新するAPI ======== */
+if (url.pathname.startsWith("/refresh/")) {
+  const userId = url.pathname.split("/")[2];
+
+  // KV のユーザーデータ読み込み
+  const raw = await env.OAUTH_KV.get(userId);
+  if (!raw) return new Response("User not found", { status: 404 });
+
+  const data = JSON.parse(raw);
+  const oldToken = data.token;
+
+  try {
+    const newToken = await refreshAccessToken(
+      oldToken.refresh_token,
+      CLIENT_ID,
+      env.CLIENT_SECRET
+    );
+
+    // 上書き保存
+    data.token = newToken;
+    data.saved_at = Date.now();
+    await env.OAUTH_KV.put(userId, JSON.stringify(data));
+
+    return new Response(JSON.stringify(newToken), {
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (e) {
+    return new Response("Refresh error:\n" + e.message, { status: 500 });
+  }
+}
