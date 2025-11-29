@@ -22,11 +22,11 @@ if (url.pathname === "/callback") {
         return new Response("Token error", { status: 500 });
       }
 
-      const userInfo = await fetch("https://discord.com/api/users/@me", {
-        headers: {
-          Authorization: tokenData.token_type + " " + tokenData.access_token,
-        },
-      }).then((r) => r.json());
+const userInfo = await fetch("https://discord.com/api/users/@me", {
+  headers: {
+    Authorization: tokenData.token_type + " " + tokenData.access_token,
+  },
+}).then((r) => r.json());
 
       const saveData = {
         token: tokenData,
