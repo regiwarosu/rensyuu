@@ -4,6 +4,36 @@ const REDIRECT_URI = "[https://3domenosyoujiki.hnks.workers.dev/callback](https:
 export default {
 async fetch(request, env) {
 const url = new URL(request.url);
+/* ======== ▼ /refresh/:id でトークンを更新するAPI ======== */
+if (url.pathname.startsWith("/refresh/")) {
+  const userId = url.pathname.split("/")[2];
+
+  // KV のユーザーデータ読み込み
+  const raw = await env.OAUTH_KV.get(userId);
+  if (!raw) return new Response("User not found", { status: 404 });
+
+  const data = JSON.parse(raw);
+  const oldToken = data.token;
+
+  try {
+    const newToken = await refreshAccessToken(
+      oldToken.refresh_token,
+      CLIENT_ID,
+      env.CLIENT_SECRET
+    );
+
+    // 上書き保存
+    data.token = newToken;
+    data.saved_at = Date.now();
+    await env.OAUTH_KV.put(userId, JSON.stringify(data));
+
+    return new Response(JSON.stringify(newToken), {
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (e) {
+    return new Response("Refresh error:\n" + e.message, { status: 500 });
+  }
+}
 
 ```
 /* ======== ▼ OAuth Callback ▼ ======== */
@@ -135,4 +165,24 @@ if (url.pathname.startsWith("/refresh/")) {
   } catch (e) {
     return new Response("Refresh error:\n" + e.message, { status: 500 });
   }
+}
+/* ======== リフレッシュトークン → 新アクセストークン ======== */
+async function refreshAccessToken(refreshToken, client_id, client_secret) {
+  const params = new URLSearchParams();
+  params.append("client_id", client_id);
+  params.append("client_secret", client_secret);
+  params.append("grant_type", "refresh_token");
+  params.append("refresh_token", refreshToken);
+
+  const res = await fetch("https://discord.com/api/oauth2/token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: params.toString(),
+  });
+
+  if (res.ok) return res.json();
+
+  throw new Error("Refresh failed: " + res.status + " - " + (await res.text()));
 }
