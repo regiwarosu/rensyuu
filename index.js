@@ -47,7 +47,7 @@ export default {
           const html = `
             <!DOCTYPE html>
             <html><body>
-              <h2>認証完了！ このタブは自動で閉じられます。</h2>
+              <h2>おわたで　</h2>
               <script>window.close();</script>
             </body></html>`;
 
