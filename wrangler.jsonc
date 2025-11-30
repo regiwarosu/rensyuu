@@ -1,10 +1,9 @@
 {
   "name": "3domenosyoujiki",
-  "compatibility_date": "2025-11-26", 
+  "compatibility_date": "2025-11-26",
   "main": "index.js",
   "account_id": "594477c07b31ef63b018d3202966b83c",
-
- "kv_namespaces": [
+  "kv_namespaces": [
     {
       "binding": "OAUTH_KV",
       "id": "00c6a8508f9449f6b637ce3bf7bce351",
