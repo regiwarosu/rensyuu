@@ -2,7 +2,7 @@
   "name": "3domenosyoujiki",
   "compatibility_date": "2025-11-26", 
   "main": "index.js",
-  "account_id": "594477c07b31ef63b018d3202966b83c" 
+  "account_id": "594477c07b31ef63b018d3202966b83c",
 
  "kv_namespaces": [
     {
