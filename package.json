@@ -1,11 +1,13 @@
 {
   "name": "3domenosyoujiki",
   "version": "1.0.0",
-  "description": "Discord OAuth2 Worker for Cloudflare Pages",
+  "description": "Discord Bot",
+  "type": "module",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "build": "echo 'No build required'"
+    "start": "node index.js"
   },
-  "dependencies": {}
+  "dependencies": {
+    "discord.js": "^14.14.1"
+  }
 }
