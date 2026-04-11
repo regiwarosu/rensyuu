@@ -1,8 +1,30 @@
+import { Client, GatewayIntentBits } from 'discord.js';
+import fetch from 'node-fetch';
+import express from 'express';
+
+// ===== サーバー（Render用）=====
+const app = express();
+app.get('/', (req, res) => {
+  res.send('Bot is running');
+});
+app.listen(3000);
+
+// ===== Discord Bot =====
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds]
+});
+
+// 起動ログ
+client.once('ready', () => {
+  console.log(`Logged in as ${client.user.tag}`);
+});
+
+// コマンド処理
 client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand()) return;
 
   if (interaction.commandName === 'test') {
-    await interaction.deferReply(); // ←これ重要！！！
+    await interaction.deferReply();
 
     try {
       const res = await fetch(
@@ -17,3 +39,6 @@ client.on('interactionCreate', async interaction => {
     }
   }
 });
+
+// ログイン（最後に書く）
+client.login(process.env.TOKEN);
