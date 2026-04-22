@@ -21,7 +21,7 @@ let messageId = ""; // ← 最初は空
 client.once('ready', async () => {
   console.log(`Logged in as ${client.user.tag}`);
 
-  const channel = await client.channels.fetch("1493880648480587906");
+  const channel = await client.channels.fetch("1496426026715058226");
   try {
     if (messageId) {
       await channel.messages.fetch(messageId);
