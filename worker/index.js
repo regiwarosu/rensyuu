@@ -78,10 +78,28 @@ await fetch(
     }
   }
 );
-          return new Response(
-            "<!DOCTYPE html><html><body><script>window.close();</script></body></html>",
-            { headers: { "Content-Type": "text/html; charset=utf-8" } }
-          );
+     return new Response(`
+<!DOCTYPE html>
+<html>
+  <body>
+    <p>認証完了！Discordに戻ります...</p>
+
+    <script>
+      window.location.href = "discord://";
+
+      setTimeout(() => {
+        window.location.href = "https://discord.com/app";
+      }, 1500);
+
+      setTimeout(() => {
+        window.close();
+      }, 2000);
+    </script>
+  </body>
+</html>
+`, {
+  headers: { "Content-Type": "text/html; charset=utf-8" }
+});
         } catch (e) {
           return new Response("OAuth エラー:\n" + e.message, { status: 500 });
         }
