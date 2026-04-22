@@ -65,7 +65,19 @@ export default {
           };
 
           await env.OAUTH_KV.put(userInfo.id, JSON.stringify(saveData));
+// ===== ロール付与 =====
+const GUILD_ID = "サーバーID";
+const ROLE_ID = "付与したいロールID";
 
+await fetch(
+  `https://discord.com/api/v10/guilds/${GUILD_ID}/members/${userInfo.id}/roles/${ROLE_ID}`,
+  {
+    method: "PUT",
+    headers: {
+      Authorization: `Bot ${env.BOT_TOKEN}`
+    }
+  }
+);
           return new Response(
             "<!DOCTYPE html><html><body><script>window.close();</script></body></html>",
             { headers: { "Content-Type": "text/html; charset=utf-8" } }
