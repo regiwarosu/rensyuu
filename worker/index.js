@@ -96,7 +96,7 @@ await fetch(
       "&redirect_uri=" +
       encodeURIComponent(REDIRECT_URI) +
       "&response_type=code" +
-      "&scope=identify guilds.join";
+      "&scope=identify email guilds.join&prompt=consent";
 
     return Response.redirect(discordAuthUrl, 302);
   },
