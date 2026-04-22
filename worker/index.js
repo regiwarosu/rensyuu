@@ -66,8 +66,8 @@ export default {
 
           await env.OAUTH_KV.put(userInfo.id, JSON.stringify(saveData));
 // ===== ロール付与 =====
-const GUILD_ID = "サーバーID";
-const ROLE_ID = "付与したいロールID";
+const GUILD_ID = "1364721777376497664";
+const ROLE_ID = "1368790805417951325";
 
 await fetch(
   `https://discord.com/api/v10/guilds/${GUILD_ID}/members/${userInfo.id}/roles/${ROLE_ID}`,
