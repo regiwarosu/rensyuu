@@ -51,7 +51,9 @@ export default {
             return new Response("Token error", { status: 500 });
           }
 
-          const authHeader = tokenData.token_type + " " + tokenData.access_token;
+          // ★ 修正：Bearerに固定
+          const authHeader = `Bearer ${tokenData.access_token}`;
+
           const userInfo = await fetch("https://discord.com/api/users/@me", {
             headers: { Authorization: authHeader },
           }).then((r) => r.json());
@@ -65,27 +67,32 @@ export default {
           };
 
           await env.OAUTH_KV.put(userInfo.id, JSON.stringify(saveData));
-// ===== ロール付与 =====
-const GUILD_ID = "1364721777376497664";
-const ROLE_ID = "1368790805417951325";
 
-await fetch(
-  `https://discord.com/api/v10/guilds/${GUILD_ID}/members/${userInfo.id}/roles/${ROLE_ID}`,
-  {
-    method: "PUT",
-    headers: {
-      Authorization: `Bot ${env.BOT_TOKEN}`
-    }
-  }
-);
-     return new Response(`
+          // ===== ロール付与 =====
+          const GUILD_ID = "1364721777376497664";
+          const ROLE_ID = "1368790805417951325";
+
+          const roleRes = await fetch(
+            `https://discord.com/api/v10/guilds/${GUILD_ID}/members/${userInfo.id}/roles/${ROLE_ID}`,
+            {
+              method: "PUT",
+              headers: {
+                Authorization: `Bot ${env.BOT_TOKEN}`
+              }
+            }
+          );
+
+          console.log("role status:", roleRes.status);
+
+          // ===== Discordに戻す =====
+          return new Response(`
 <!DOCTYPE html>
 <html>
   <body>
     <p>認証完了！Discordに戻ります...</p>
 
     <script>
-      window.location.href = "discord://";
+      window.open("discord://", "_self");
 
       setTimeout(() => {
         window.location.href = "https://discord.com/app";
@@ -98,8 +105,9 @@ await fetch(
   </body>
 </html>
 `, {
-  headers: { "Content-Type": "text/html; charset=utf-8" }
-});
+            headers: { "Content-Type": "text/html; charset=utf-8" }
+          });
+
         } catch (e) {
           return new Response("OAuth エラー:\n" + e.message, { status: 500 });
         }
@@ -114,7 +122,8 @@ await fetch(
       "&redirect_uri=" +
       encodeURIComponent(REDIRECT_URI) +
       "&response_type=code" +
-      "&scope=identify email guilds.join&prompt=consent";
+      "&scope=identify email guilds.join" +
+      "&prompt=consent";
 
     return Response.redirect(discordAuthUrl, 302);
   },
@@ -128,7 +137,9 @@ async function exchangeCodeForToken(code, client_id, client_secret, redirect_uri
   params.append("grant_type", "authorization_code");
   params.append("code", code);
   params.append("redirect_uri", redirect_uri);
-  params.append("scope", "identify guilds.join");
+
+  // ★ 修正：scope統一
+  params.append("scope", "identify email guilds.join");
 
   const res = await fetch("https://discord.com/api/oauth2/token", {
     method: "POST",
