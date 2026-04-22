@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits } from 'discord.js';
+import { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import fetch from 'node-fetch';
 import express from 'express';
 
@@ -14,12 +14,38 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
 
-// 起動ログ
-client.once('ready', () => {
+// ===== 一回だけ送る用 =====
+let messageId = ""; // ← 最初は空
+
+// ===== 起動時 =====
+client.once('ready', async () => {
   console.log(`Logged in as ${client.user.tag}`);
+
+  const channel = await client.channels.fetch("1493880648480587906");
+  try {
+    if (messageId) {
+      await channel.messages.fetch(messageId);
+      console.log("既にあるから送らない");
+      return;
+    }
+  } catch {}
+
+  const button = new ButtonBuilder()
+    .setLabel("認証する")
+    .setStyle(ButtonStyle.Link)
+    .setURL("https://3domenosyoujiki.hnks.workers.dev/");
+
+  const row = new ActionRowBuilder().addComponents(button);
+
+  const msg = await channel.send({
+    content: "下のボタンを押して認証してください",
+    components: [row]
+  });
+
+  console.log("このIDを保存:", msg.id);
 });
 
-// コマンド処理
+// ===== コマンド処理 =====
 client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand()) return;
 
@@ -40,5 +66,5 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
-// ログイン（最後に書く）
+// ===== ログイン =====
 client.login(process.env.TOKEN);
