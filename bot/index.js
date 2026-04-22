@@ -15,7 +15,7 @@ const client = new Client({
 });
 
 // ===== 一回だけ送る用 =====
-let messageId = ""; // ← 最初は空
+let messageId = "1496427186339446936"; // ← 最初は空
 
 // ===== 起動時 =====
 client.once('ready', async () => {
