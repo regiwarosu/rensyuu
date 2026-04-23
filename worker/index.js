@@ -123,8 +123,15 @@ export default {
   encodeURIComponent(REDIRECT_URI) +
   "&response_type=code" +
   "&scope=" + encodeURIComponent("identify email guilds.join") +
-  "&prompt=consent";
-    return Response.redirect(discordAuthUrl, 302);
+  "&prompt=consent" +
+"&state=" + Date.now();
+   return new Response(null, {
+  status: 302,
+  headers: {
+    "Location": discordAuthUrl,
+    "Cache-Control": "no-store, no-cache, must-revalidate"
+  }
+});
   },
 };
 
