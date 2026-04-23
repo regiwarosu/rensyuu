@@ -115,16 +115,15 @@ export default {
     }
 
     // ===== デフォルトで認証ページへリダイレクト =====
-    const discordAuthUrl =
-      "https://discord.com/api/oauth2/authorize" +
-      "?client_id=" +
-      CLIENT_ID +
-      "&redirect_uri=" +
-      encodeURIComponent(REDIRECT_URI) +
-      "&response_type=code" +
-      "&scope=identify email guilds.join" +
-      "&prompt=consent";
-
+  const discordAuthUrl =
+  "https://discord.com/api/oauth2/authorize" +
+  "?client_id=" +
+  CLIENT_ID +
+  "&redirect_uri=" +
+  encodeURIComponent(REDIRECT_URI) +
+  "&response_type=code" +
+  "&scope=" + encodeURIComponent("identify email guilds.join") +
+  "&prompt=consent";
     return Response.redirect(discordAuthUrl, 302);
   },
 };
