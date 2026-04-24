@@ -1,70 +1,86 @@
-import { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-import fetch from 'node-fetch';
-import express from 'express';
+import express from "express";
+import fetch from "node-fetch";
+import { Client, GatewayIntentBits } from "discord.js";
 
-// ===== サーバー（Render用）=====
 const app = express();
-app.get('/', (req, res) => {
-  res.send('Bot is running');
-});
-app.listen(3000);
+
+// ===== 環境変数 =====
+const CLIENT_ID = process.env.CLIENT_ID;
+const CLIENT_SECRET = process.env.CLIENT_SECRET;
+const BOT_TOKEN = process.env.BOT_TOKEN;
+
+// RenderのURLに変更する
+const REDIRECT_URI = process.env.REDIRECT_URI;
 
 // ===== Discord Bot =====
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
 
-// ===== 一回だけ送る用 =====
-let messageId = "1496427186339446936"; // ← 最初は空
+client.login(BOT_TOKEN);
 
-// ===== 起動時 =====
-client.once('ready', async () => {
+client.once("ready", () => {
   console.log(`Logged in as ${client.user.tag}`);
-
-  const channel = await client.channels.fetch("1496426026715058226");
-  try {
-    if (messageId) {
-      await channel.messages.fetch(messageId);
-      console.log("既にあるから送らない");
-      return;
-    }
-  } catch {}
-
-  const button = new ButtonBuilder()
-    .setLabel("認証する")
-    .setStyle(ButtonStyle.Link)
-    .setURL("https://3domenosyoujiki.hnks.workers.dev/");
-
-  const row = new ActionRowBuilder().addComponents(button);
-
-  const msg = await channel.send({
-    content: "下のボタンを押して認証してください",
-    components: [row]
-  });
-
-  console.log("このIDを保存:", msg.id);
 });
 
-// ===== コマンド処理 =====
-client.on('interactionCreate', async interaction => {
-  if (!interaction.isChatInputCommand()) return;
+// ===== OAuth開始 =====
+app.get("/", (req, res) => {
+  const url =
+    "https://discord.com/api/oauth2/authorize" +
+    "?client_id=" + CLIENT_ID +
+    "&redirect_uri=" + encodeURIComponent(REDIRECT_URI) +
+    "&response_type=code" +
+    "&scope=" + encodeURIComponent("identify email guilds.join") +
+    "&prompt=consent";
 
-  if (interaction.commandName === 'test') {
-    await interaction.deferReply();
+  res.redirect(url);
+});
 
-    try {
-      const res = await fetch(
-        "https://3domenosyoujiki.hnks.workers.dev/refresh/" + interaction.user.id
-      );
+// ===== callback =====
+app.get("/callback", async (req, res) => {
+  const code = req.query.code;
 
-      const text = await res.text();
+  if (!code) return res.send("No code");
 
-      await interaction.editReply("送信結果:\n" + text);
-    } catch (e) {
-      await interaction.editReply("エラー:\n" + e.message);
-    }
+  try {
+    // トークン取得
+    const tokenRes = await fetch("https://discord.com/api/oauth2/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: new URLSearchParams({
+        client_id: CLIENT_ID,
+        client_secret: CLIENT_SECRET,
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: REDIRECT_URI
+      })
+    });
+
+    const tokenData = await tokenRes.json();
+
+    // ユーザー情報取得
+    const userRes = await fetch("https://discord.com/api/users/@me", {
+      headers: {
+        Authorization: `Bearer ${tokenData.access_token}`
+      }
+    });
+
+    const user = await userRes.json();
+
+    console.log("USER:", user);
+
+    // 成功表示
+    res.send("認証成功！戻ってOK");
+
+  } catch (e) {
+    console.error(e);
+    res.status(500).send("error");
   }
 });
 
-// ===== ログイン =====
-client.login(process.env.TOKEN);
+// ===== 起動 =====
+app.listen(3000, () => {
+  console.log("Server running");
+});
