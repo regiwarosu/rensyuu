@@ -13,6 +13,10 @@ const REDIRECT_URI = process.env.REDIRECT_URI;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
+// ===== Discord設定 =====
+const GUILD_ID = "あなたのサーバーID";
+const ROLE_ID = "付与したいロールID";
+
 // ===== Discord Bot =====
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
@@ -39,8 +43,6 @@ app.get("/", (req, res) => {
 
 // ===== Supabase保存 =====
 async function saveUser(user) {
-  console.log("保存開始");
-
   const res = await fetch(SUPABASE_URL + "/rest/v1/users", {
     method: "POST",
     headers: {
@@ -57,26 +59,47 @@ async function saveUser(user) {
     })
   });
 
-  const text = await res.text();
+  console.log("Supabase:", res.status);
+}
 
-  console.log("Supabase status:", res.status);
-  console.log("Supabase response:", text);
+// ===== ロール付与 =====
+async function giveRole(userId, accessToken) {
+  const res = await fetch(
+    `https://discord.com/api/v10/guilds/${GUILD_ID}/members/${userId}`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bot ${BOT_TOKEN}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        access_token: accessToken
+      })
+    }
+  );
 
-  if (!res.ok) {
-    throw new Error("Supabaseエラー: " + text);
-  }
+  console.log("Guild join:", res.status);
+
+  const roleRes = await fetch(
+    `https://discord.com/api/v10/guilds/${GUILD_ID}/members/${userId}/roles/${ROLE_ID}`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bot ${BOT_TOKEN}`
+      }
+    }
+  );
+
+  console.log("Role:", roleRes.status);
 }
 
 // ===== callback =====
 app.get("/callback", async (req, res) => {
   const code = req.query.code;
-
   if (!code) return res.send("No code");
 
   try {
-    console.log("CODE:", code);
-
-    // ===== トークン取得 =====
+    // トークン取得
     const tokenRes = await fetch("https://discord.com/api/oauth2/token", {
       method: "POST",
       headers: {
@@ -92,9 +115,8 @@ app.get("/callback", async (req, res) => {
     });
 
     const tokenData = await tokenRes.json();
-    console.log("TOKEN:", tokenData);
 
-    // ===== ユーザー取得 =====
+    // ユーザー取得
     const userRes = await fetch("https://discord.com/api/users/@me", {
       headers: {
         Authorization: `Bearer ${tokenData.access_token}`
@@ -104,23 +126,27 @@ app.get("/callback", async (req, res) => {
     const user = await userRes.json();
     console.log("USER:", user);
 
-    // ===== 保存 =====
+    // ===== DB保存 =====
     await saveUser(user);
 
-    // ===== 成功画面 =====
-    res.send(`
-      <h2>認証成功</h2>
-      <p>${user.username}</p>
-      <p>${user.email || "email非公開"}</p>
-    `);
+    // ===== 条件チェック =====
+    if (user.email && user.verified) {
+      console.log("メール確認OK → ロール付与");
+
+      await giveRole(user.id, tokenData.access_token);
+    } else {
+      console.log("メールなし or 未認証 → スキップ");
+    }
+
+    res.send("認証完了");
 
   } catch (e) {
-    console.error("ERROR:", e);
-    res.status(500).send("ERROR: " + e.message);
+    console.error(e);
+    res.status(500).send("error");
   }
 });
 
-// ===== サーバー起動 =====
+// ===== 起動 =====
 app.listen(process.env.PORT || 3000, () => {
   console.log("Server running");
 });
