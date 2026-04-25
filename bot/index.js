@@ -15,7 +15,7 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
 // ===== Discord設定 =====
 const GUILD_ID = "あなたのサーバーID";
-const ROLE_ID = "付与したいロールID";
+const ROLE_ID = "付与するロールID";
 
 // ===== Bot =====
 const client = new Client({
@@ -48,47 +48,34 @@ app.get("/", (req, res) => {
   res.redirect(url);
 });
 
-// ===== DB保存 =====
+// ===== DB保存（IDで上書き）=====
 async function saveUser(user) {
-  const res = await fetch(SUPABASE_URL + "/rest/v1/users", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "apikey": SUPABASE_KEY,
-      "Authorization": `Bearer ${SUPABASE_KEY}`,
-      "Prefer": "resolution=merge-duplicates"
-    },
-    body: JSON.stringify({
-      email: user.email,
-      id: user.id,
-      username: user.username,
-      created_at: getJST()
-    })
-  });
-
-  console.log("Supabase:", res.status);
-}
-
-// ===== ロール付与（ここ重要）=====
-async function giveRole(userId, accessToken) {
-  // ① サーバーに参加させる
-  const join = await fetch(
-    `https://discord.com/api/v10/guilds/${GUILD_ID}/members/${userId}`,
+  const res = await fetch(
+    SUPABASE_URL + "/rest/v1/users?on_conflict=id",
     {
-      method: "PUT",
+      method: "POST",
       headers: {
-        Authorization: `Bot ${BOT_TOKEN}`,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "apikey": SUPABASE_KEY,
+        "Authorization": `Bearer ${SUPABASE_KEY}`,
+        "Prefer": "resolution=merge-duplicates"
       },
       body: JSON.stringify({
-        access_token: accessToken
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        created_at: getJST()
       })
     }
   );
 
-  console.log("Guild join:", join.status);
+  const text = await res.text();
+  console.log("Supabase:", res.status, text);
+}
 
-  // ② ロール付与
+// ===== ロール付与（完全対応）=====
+async function giveRole(userId, accessToken) {
+  // ① まずロールだけ試す（既存ユーザー用）
   const role = await fetch(
     `https://discord.com/api/v10/guilds/${GUILD_ID}/members/${userId}/roles/${ROLE_ID}`,
     {
@@ -99,7 +86,44 @@ async function giveRole(userId, accessToken) {
     }
   );
 
-  console.log("Role:", role.status);
+  const roleText = await role.text();
+  console.log("Role:", role.status, roleText);
+
+  // ② 失敗したら参加させる
+  if (role.status !== 204) {
+    console.log("ロール失敗 → join実行");
+
+    const join = await fetch(
+      `https://discord.com/api/v10/guilds/${GUILD_ID}/members/${userId}`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bot ${BOT_TOKEN}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          access_token: accessToken
+        })
+      }
+    );
+
+    const joinText = await join.text();
+    console.log("Guild join:", join.status, joinText);
+
+    // ③ 再度ロール付与
+    const role2 = await fetch(
+      `https://discord.com/api/v10/guilds/${GUILD_ID}/members/${userId}/roles/${ROLE_ID}`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bot ${BOT_TOKEN}`
+        }
+      }
+    );
+
+    const roleText2 = await role2.text();
+    console.log("Role retry:", role2.status, roleText2);
+  }
 }
 
 // ===== callback =====
@@ -138,7 +162,7 @@ app.get("/callback", async (req, res) => {
     // 保存
     await saveUser(user);
 
-    // 条件OKならロール付与
+    // email確認 → ロール付与
     if (user.email && user.verified) {
       await giveRole(user.id, tokenData.access_token);
     } else {
@@ -146,7 +170,7 @@ app.get("/callback", async (req, res) => {
     }
 
   } catch (e) {
-    console.error(e);
+    console.error("ERROR:", e);
   }
 
   // 即戻る
