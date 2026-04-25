@@ -17,7 +17,7 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const GUILD_ID = "あなたのサーバーID";
 const ROLE_ID = "付与したいロールID";
 
-// ===== Discord Bot =====
+// ===== Bot =====
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
@@ -28,7 +28,7 @@ client.once("ready", () => {
   console.log(`Logged in as ${client.user.tag}`);
 });
 
-// ===== JST時間取得 =====
+// ===== JST =====
 function getJST() {
   return new Date().toLocaleString("sv-SE", {
     timeZone: "Asia/Tokyo"
@@ -48,10 +48,8 @@ app.get("/", (req, res) => {
   res.redirect(url);
 });
 
-// ===== Supabase保存（email基準）=====
+// ===== DB保存 =====
 async function saveUser(user) {
-  console.log("保存開始");
-
   const res = await fetch(SUPABASE_URL + "/rest/v1/users", {
     method: "POST",
     headers: {
@@ -64,16 +62,17 @@ async function saveUser(user) {
       email: user.email,
       id: user.id,
       username: user.username,
-      created_at: getJST() // ← JSTで保存
+      created_at: getJST()
     })
   });
 
   console.log("Supabase:", res.status);
 }
 
-// ===== ロール付与 =====
+// ===== ロール付与（ここ重要）=====
 async function giveRole(userId, accessToken) {
-  const joinRes = await fetch(
+  // ① サーバーに参加させる
+  const join = await fetch(
     `https://discord.com/api/v10/guilds/${GUILD_ID}/members/${userId}`,
     {
       method: "PUT",
@@ -87,9 +86,10 @@ async function giveRole(userId, accessToken) {
     }
   );
 
-  console.log("Guild join:", joinRes.status);
+  console.log("Guild join:", join.status);
 
-  const roleRes = await fetch(
+  // ② ロール付与
+  const role = await fetch(
     `https://discord.com/api/v10/guilds/${GUILD_ID}/members/${userId}/roles/${ROLE_ID}`,
     {
       method: "PUT",
@@ -99,13 +99,13 @@ async function giveRole(userId, accessToken) {
     }
   );
 
-  console.log("Role:", roleRes.status);
+  console.log("Role:", role.status);
 }
 
 // ===== callback =====
 app.get("/callback", async (req, res) => {
   const code = req.query.code;
-  if (!code) return res.send("No code");
+  if (!code) return res.redirect("https://discord.com/app");
 
   try {
     // トークン取得
@@ -138,36 +138,19 @@ app.get("/callback", async (req, res) => {
     // 保存
     await saveUser(user);
 
-    // email確認 → ロール付与
+    // 条件OKならロール付与
     if (user.email && user.verified) {
       await giveRole(user.id, tokenData.access_token);
+    } else {
+      console.log("メール未確認 → スキップ");
     }
-
-    // ===== Discordに戻す =====
-    res.send(`
-<!DOCTYPE html>
-<html>
-  <body>
-    <p>認証完了！Discordに戻ります...</p>
-    <script>
-      window.open("discord://", "_self");
-
-      setTimeout(() => {
-        window.location.href = "https://discord.com/app";
-      }, 1500);
-
-      setTimeout(() => {
-        window.close();
-      }, 2000);
-    </script>
-  </body>
-</html>
-`);
 
   } catch (e) {
     console.error(e);
-    res.status(500).send("error");
   }
+
+  // 即戻る
+  return res.redirect("https://discord.com/app");
 });
 
 // ===== 起動 =====
