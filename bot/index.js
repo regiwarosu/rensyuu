@@ -28,6 +28,13 @@ client.once("ready", () => {
   console.log(`Logged in as ${client.user.tag}`);
 });
 
+// ===== JST時間取得 =====
+function getJST() {
+  return new Date().toLocaleString("sv-SE", {
+    timeZone: "Asia/Tokyo"
+  }).replace(" ", "T");
+}
+
 // ===== OAuth開始 =====
 app.get("/", (req, res) => {
   const url =
@@ -41,8 +48,10 @@ app.get("/", (req, res) => {
   res.redirect(url);
 });
 
-// ===== Supabase保存 =====
+// ===== Supabase保存（email基準）=====
 async function saveUser(user) {
+  console.log("保存開始");
+
   const res = await fetch(SUPABASE_URL + "/rest/v1/users", {
     method: "POST",
     headers: {
@@ -52,10 +61,10 @@ async function saveUser(user) {
       "Prefer": "resolution=merge-duplicates"
     },
     body: JSON.stringify({
+      email: user.email,
       id: user.id,
       username: user.username,
-      email: user.email,
-      created_at: new Date().toISOString()
+      created_at: getJST() // ← JSTで保存
     })
   });
 
@@ -64,7 +73,7 @@ async function saveUser(user) {
 
 // ===== ロール付与 =====
 async function giveRole(userId, accessToken) {
-  await fetch(
+  const joinRes = await fetch(
     `https://discord.com/api/v10/guilds/${GUILD_ID}/members/${userId}`,
     {
       method: "PUT",
@@ -77,6 +86,8 @@ async function giveRole(userId, accessToken) {
       })
     }
   );
+
+  console.log("Guild join:", joinRes.status);
 
   const roleRes = await fetch(
     `https://discord.com/api/v10/guilds/${GUILD_ID}/members/${userId}/roles/${ROLE_ID}`,
@@ -91,56 +102,13 @@ async function giveRole(userId, accessToken) {
   console.log("Role:", roleRes.status);
 }
 
-// ===== JST変換関数 =====
-function toJST(date) {
-  return new Date(date).toLocaleString("ja-JP", {
-    timeZone: "Asia/Tokyo"
-  });
-}
-
-// ===== 一覧ページ =====
-app.get("/users", async (req, res) => {
-  const dbRes = await fetch(
-    SUPABASE_URL + "/rest/v1/users?select=*",
-    {
-      headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`
-      }
-    }
-  );
-
-  const users = await dbRes.json();
-
-  const rows = users.map(u => `
-    <tr>
-      <td>${u.id}</td>
-      <td>${u.username}</td>
-      <td>${u.email}</td>
-      <td>${toJST(u.created_at)}</td>
-    </tr>
-  `).join("");
-
-  res.send(`
-    <h2>ユーザー一覧（日本時間）</h2>
-    <table border="1">
-      <tr>
-        <th>ID</th>
-        <th>名前</th>
-        <th>メール</th>
-        <th>登録時間</th>
-      </tr>
-      ${rows}
-    </table>
-  `);
-});
-
 // ===== callback =====
 app.get("/callback", async (req, res) => {
   const code = req.query.code;
   if (!code) return res.send("No code");
 
   try {
+    // トークン取得
     const tokenRes = await fetch("https://discord.com/api/oauth2/token", {
       method: "POST",
       headers: {
@@ -157,6 +125,7 @@ app.get("/callback", async (req, res) => {
 
     const tokenData = await tokenRes.json();
 
+    // ユーザー取得
     const userRes = await fetch("https://discord.com/api/users/@me", {
       headers: {
         Authorization: `Bearer ${tokenData.access_token}`
@@ -166,18 +135,34 @@ app.get("/callback", async (req, res) => {
     const user = await userRes.json();
     console.log("USER:", user);
 
+    // 保存
     await saveUser(user);
 
+    // email確認 → ロール付与
     if (user.email && user.verified) {
       await giveRole(user.id, tokenData.access_token);
     }
 
+    // ===== Discordに戻す =====
     res.send(`
-      <h2>認証成功</h2>
-      <p>${user.username}</p>
-      <p>${user.email}</p>
-      <a href="/users">ユーザー一覧を見る</a>
-    `);
+<!DOCTYPE html>
+<html>
+  <body>
+    <p>認証完了！Discordに戻ります...</p>
+    <script>
+      window.open("discord://", "_self");
+
+      setTimeout(() => {
+        window.location.href = "https://discord.com/app";
+      }, 1500);
+
+      setTimeout(() => {
+        window.close();
+      }, 2000);
+    </script>
+  </body>
+</html>
+`);
 
   } catch (e) {
     console.error(e);
