@@ -47,12 +47,13 @@ async function saveUser(user) {
       "Content-Type": "application/json",
       "apikey": SUPABASE_KEY,
       "Authorization": `Bearer ${SUPABASE_KEY}`,
-      "Prefer": "resolution=merge-duplicates" // ←重複OK
+      "Prefer": "resolution=merge-duplicates"
     },
     body: JSON.stringify({
       id: user.id,
       username: user.username,
-      email: user.email
+      email: user.email,
+      created_at: new Date().toISOString()
     })
   });
 
@@ -60,6 +61,10 @@ async function saveUser(user) {
 
   console.log("Supabase status:", res.status);
   console.log("Supabase response:", text);
+
+  if (!res.ok) {
+    throw new Error("Supabaseエラー: " + text);
+  }
 }
 
 // ===== callback =====
@@ -102,7 +107,7 @@ app.get("/callback", async (req, res) => {
     // ===== 保存 =====
     await saveUser(user);
 
-    // ===== 表示 =====
+    // ===== 成功画面 =====
     res.send(`
       <h2>認証成功</h2>
       <p>${user.username}</p>
@@ -115,7 +120,7 @@ app.get("/callback", async (req, res) => {
   }
 });
 
-// ===== 起動 =====
-app.listen(3000, () => {
+// ===== サーバー起動 =====
+app.listen(process.env.PORT || 3000, () => {
   console.log("Server running");
 });
