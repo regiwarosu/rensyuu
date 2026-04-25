@@ -64,7 +64,7 @@ async function saveUser(user) {
 
 // ===== ロール付与 =====
 async function giveRole(userId, accessToken) {
-  const res = await fetch(
+  await fetch(
     `https://discord.com/api/v10/guilds/${GUILD_ID}/members/${userId}`,
     {
       method: "PUT",
@@ -77,8 +77,6 @@ async function giveRole(userId, accessToken) {
       })
     }
   );
-
-  console.log("Guild join:", res.status);
 
   const roleRes = await fetch(
     `https://discord.com/api/v10/guilds/${GUILD_ID}/members/${userId}/roles/${ROLE_ID}`,
@@ -93,13 +91,56 @@ async function giveRole(userId, accessToken) {
   console.log("Role:", roleRes.status);
 }
 
+// ===== JST変換関数 =====
+function toJST(date) {
+  return new Date(date).toLocaleString("ja-JP", {
+    timeZone: "Asia/Tokyo"
+  });
+}
+
+// ===== 一覧ページ =====
+app.get("/users", async (req, res) => {
+  const dbRes = await fetch(
+    SUPABASE_URL + "/rest/v1/users?select=*",
+    {
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`
+      }
+    }
+  );
+
+  const users = await dbRes.json();
+
+  const rows = users.map(u => `
+    <tr>
+      <td>${u.id}</td>
+      <td>${u.username}</td>
+      <td>${u.email}</td>
+      <td>${toJST(u.created_at)}</td>
+    </tr>
+  `).join("");
+
+  res.send(`
+    <h2>ユーザー一覧（日本時間）</h2>
+    <table border="1">
+      <tr>
+        <th>ID</th>
+        <th>名前</th>
+        <th>メール</th>
+        <th>登録時間</th>
+      </tr>
+      ${rows}
+    </table>
+  `);
+});
+
 // ===== callback =====
 app.get("/callback", async (req, res) => {
   const code = req.query.code;
   if (!code) return res.send("No code");
 
   try {
-    // トークン取得
     const tokenRes = await fetch("https://discord.com/api/oauth2/token", {
       method: "POST",
       headers: {
@@ -116,7 +157,6 @@ app.get("/callback", async (req, res) => {
 
     const tokenData = await tokenRes.json();
 
-    // ユーザー取得
     const userRes = await fetch("https://discord.com/api/users/@me", {
       headers: {
         Authorization: `Bearer ${tokenData.access_token}`
@@ -126,19 +166,18 @@ app.get("/callback", async (req, res) => {
     const user = await userRes.json();
     console.log("USER:", user);
 
-    // ===== DB保存 =====
     await saveUser(user);
 
-    // ===== 条件チェック =====
     if (user.email && user.verified) {
-      console.log("メール確認OK → ロール付与");
-
       await giveRole(user.id, tokenData.access_token);
-    } else {
-      console.log("メールなし or 未認証 → スキップ");
     }
 
-    res.send("認証完了");
+    res.send(`
+      <h2>認証成功</h2>
+      <p>${user.username}</p>
+      <p>${user.email}</p>
+      <a href="/users">ユーザー一覧を見る</a>
+    `);
 
   } catch (e) {
     console.error(e);
