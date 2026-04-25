@@ -14,8 +14,8 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
 // ===== Discord設定 =====
-const GUILD_ID = "あなたのサーバーID";
-const ROLE_ID = "付与するロールID";
+const GUILD_ID = "1364721777376497664";
+const ROLE_ID = "1368790805417951325";
 
 // ===== Bot =====
 const client = new Client({
