@@ -8,9 +8,10 @@ const app = express();
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const BOT_TOKEN = process.env.BOT_TOKEN;
-
-// RenderのURLに変更する
 const REDIRECT_URI = process.env.REDIRECT_URI;
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
 // ===== Discord Bot =====
 const client = new Client({
@@ -36,10 +37,29 @@ app.get("/", (req, res) => {
   res.redirect(url);
 });
 
+// ===== Supabase保存 =====
+async function saveUser(user) {
+  const res = await fetch(SUPABASE_URL + "/rest/v1/users", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "apikey": SUPABASE_KEY,
+      "Authorization": `Bearer ${SUPABASE_KEY}`,
+      "Prefer": "resolution=merge-duplicates" // 同じIDなら上書き
+    },
+    body: JSON.stringify({
+      id: user.id,
+      username: user.username,
+      email: user.email
+    })
+  });
+
+  console.log("Supabase:", res.status);
+}
+
 // ===== callback =====
 app.get("/callback", async (req, res) => {
   const code = req.query.code;
-
   if (!code) return res.send("No code");
 
   try {
@@ -60,7 +80,7 @@ app.get("/callback", async (req, res) => {
 
     const tokenData = await tokenRes.json();
 
-    // ユーザー情報取得
+    // ユーザー取得
     const userRes = await fetch("https://discord.com/api/users/@me", {
       headers: {
         Authorization: `Bearer ${tokenData.access_token}`
@@ -71,8 +91,15 @@ app.get("/callback", async (req, res) => {
 
     console.log("USER:", user);
 
-    // 成功表示
-    res.send("認証成功！戻ってOK");
+    // ===== 保存 =====
+    await saveUser(user);
+
+    // ===== 表示 =====
+    res.send(`
+      <h2>認証成功</h2>
+      <p>${user.username}</p>
+      <p>${user.email || "email非公開"}</p>
+    `);
 
   } catch (e) {
     console.error(e);
