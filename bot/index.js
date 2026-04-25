@@ -39,13 +39,15 @@ app.get("/", (req, res) => {
 
 // ===== Supabase保存 =====
 async function saveUser(user) {
+  console.log("保存開始");
+
   const res = await fetch(SUPABASE_URL + "/rest/v1/users", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "apikey": SUPABASE_KEY,
       "Authorization": `Bearer ${SUPABASE_KEY}`,
-      "Prefer": "resolution=merge-duplicates" // 同じIDなら上書き
+      "Prefer": "resolution=merge-duplicates" // ←重複OK
     },
     body: JSON.stringify({
       id: user.id,
@@ -54,16 +56,22 @@ async function saveUser(user) {
     })
   });
 
-  console.log("Supabase:", res.status);
+  const text = await res.text();
+
+  console.log("Supabase status:", res.status);
+  console.log("Supabase response:", text);
 }
 
 // ===== callback =====
 app.get("/callback", async (req, res) => {
   const code = req.query.code;
+
   if (!code) return res.send("No code");
 
   try {
-    // トークン取得
+    console.log("CODE:", code);
+
+    // ===== トークン取得 =====
     const tokenRes = await fetch("https://discord.com/api/oauth2/token", {
       method: "POST",
       headers: {
@@ -79,8 +87,9 @@ app.get("/callback", async (req, res) => {
     });
 
     const tokenData = await tokenRes.json();
+    console.log("TOKEN:", tokenData);
 
-    // ユーザー取得
+    // ===== ユーザー取得 =====
     const userRes = await fetch("https://discord.com/api/users/@me", {
       headers: {
         Authorization: `Bearer ${tokenData.access_token}`
@@ -88,7 +97,6 @@ app.get("/callback", async (req, res) => {
     });
 
     const user = await userRes.json();
-
     console.log("USER:", user);
 
     // ===== 保存 =====
@@ -102,8 +110,8 @@ app.get("/callback", async (req, res) => {
     `);
 
   } catch (e) {
-    console.error(e);
-    res.status(500).send("error");
+    console.error("ERROR:", e);
+    res.status(500).send("ERROR: " + e.message);
   }
 });
 
