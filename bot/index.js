@@ -13,8 +13,9 @@ const REDIRECT_URI = process.env.REDIRECT_URI;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
-const GUILD_ID = process.env.GUILD_ID;
-const ROLE_ID = process.env.ROLE_ID;
+// ===== 固定ID（今回あなたのやつ）=====
+const GUILD_ID = "1364721777376497664";
+const ROLE_ID = "1368790805417951325";
 
 // ===== Bot =====
 const client = new Client({
@@ -23,15 +24,15 @@ const client = new Client({
 
 client.login(BOT_TOKEN);
 
-client.once("ready", () => {
+client.once("clientReady", () => {
   console.log(`Logged in as ${client.user.tag}`);
 });
 
 // ===== JST時間 =====
 function getJST() {
-  return new Date().toLocaleString("sv-SE", {
-    timeZone: "Asia/Tokyo"
-  }).replace(" ", "T");
+  return new Date()
+    .toLocaleString("sv-SE", { timeZone: "Asia/Tokyo" })
+    .replace(" ", "T");
 }
 
 // ===== OAuth開始 =====
@@ -47,7 +48,7 @@ app.get("/", (req, res) => {
   res.redirect(url);
 });
 
-// ===== Supabase保存（IDで上書き）=====
+// ===== Supabase保存（上書き）=====
 async function saveUser(user) {
   const res = await fetch(
     SUPABASE_URL + "/rest/v1/users?on_conflict=id",
@@ -71,7 +72,25 @@ async function saveUser(user) {
   console.log("Supabase:", res.status, await res.text());
 }
 
-// ===== サーバー参加（保険）=====
+// ===== ロール付与 =====
+async function giveRole(userId) {
+  const res = await fetch(
+    `https://discord.com/api/v10/guilds/${GUILD_ID}/members/${userId}/roles/${ROLE_ID}`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bot ${BOT_TOKEN}`
+      }
+    }
+  );
+
+  const text = await res.text();
+  console.log("ROLE:", res.status, text);
+
+  return res.status;
+}
+
+// ===== join（保険）=====
 async function ensureJoin(userId, accessToken) {
   const res = await fetch(
     `https://discord.com/api/v10/guilds/${GUILD_ID}/members/${userId}`,
@@ -93,31 +112,13 @@ async function ensureJoin(userId, accessToken) {
   return res.status === 201 || res.status === 204;
 }
 
-// ===== ロール付与 =====
-async function giveRole(userId) {
-  const res = await fetch(
-    `https://discord.com/api/v10/guilds/${GUILD_ID}/members/${userId}/roles/${ROLE_ID}`,
-    {
-      method: "PUT",
-      headers: {
-        Authorization: `Bot ${BOT_TOKEN}`
-      }
-    }
-  );
-
-  const text = await res.text();
-  console.log("ROLE:", res.status, text);
-
-  return res.status;
-}
-
 // ===== callback =====
 app.get("/callback", async (req, res) => {
   const code = req.query.code;
   if (!code) return res.redirect("https://discord.com/app");
 
   try {
-    // トークン取得
+    // token取得
     const tokenRes = await fetch("https://discord.com/api/oauth2/token", {
       method: "POST",
       headers: {
@@ -134,7 +135,7 @@ app.get("/callback", async (req, res) => {
 
     const tokenData = await tokenRes.json();
 
-    // ユーザー取得
+    // user取得
     const userRes = await fetch("https://discord.com/api/users/@me", {
       headers: {
         Authorization: `Bearer ${tokenData.access_token}`
@@ -148,11 +149,10 @@ app.get("/callback", async (req, res) => {
     // DB保存
     await saveUser(user);
 
-    // ロール処理
+    // ロール処理（joinは保険）
     if (user.email && user.verified) {
       let roleStatus = await giveRole(user.id);
 
-      // 既存失敗なら joinして再試行
       if (roleStatus !== 204) {
         const joined = await ensureJoin(user.id, tokenData.access_token);
 
@@ -166,11 +166,11 @@ app.get("/callback", async (req, res) => {
     console.error("ERROR:", e);
   }
 
-  // 即戻す
+  // 即戻す（UIなし）
   return res.redirect("https://discord.com/app");
 });
 
-// ===== 起動（Render対応）=====
+// ===== 起動 =====
 app.listen(process.env.PORT || 3000, () => {
   console.log("Server running");
 });
